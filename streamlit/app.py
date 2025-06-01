@@ -15,7 +15,7 @@ parent_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 sys.path.append(parent_path)
 
 from utils.session import initialize_session
-from components.sidebar import render_controls
+from components.sidebar import render_controls, get_display_preferences
 from components.charts import render_price_chart, render_indicators_chart, render_rsi_gauge, render_trend_indicator
 from components.display import (
     render_ai_commentary, render_analysis_summary, render_last_updated_timestamp,
@@ -64,6 +64,9 @@ def render_analysis(dashboard, symbol, period, language):
             
             analysis = dashboard.get_stock_analysis(symbol, period, language)
         
+        # Get display preferences
+        display_prefs = get_display_preferences()
+        
         # Display last updated timestamp prominently at the top
         render_last_updated_timestamp(analysis_data=analysis)
         
@@ -77,12 +80,12 @@ def render_analysis(dashboard, symbol, period, language):
             st.warning("⚠️ No data available for the selected symbol and period.")
             return
         
-        # Enhanced trend indicator at the top
-        with st.container():
-            st.markdown("### 🎯 Market Overview")
-            render_trend_indicator(stock_data, indicators)
-        
-        st.markdown("---")
+        # Enhanced trend indicator at the top (if technical indicators are enabled)
+        if display_prefs.get('show_technical_indicators', True):
+            with st.container():
+                st.markdown("### 🎯 Market Overview")
+                render_trend_indicator(stock_data, indicators)
+            st.markdown("---")
         
         # Create responsive layout
         # On mobile, stack vertically; on desktop, use columns
@@ -90,102 +93,112 @@ def render_analysis(dashboard, symbol, period, language):
         
         if is_mobile:
             # Mobile layout - vertical stacking
-            render_mobile_layout(stock_data, indicators, commentary, analysis)
+            render_mobile_layout(stock_data, indicators, commentary, analysis, display_prefs)
         else:
             # Desktop layout - columns
-            render_desktop_layout(stock_data, indicators, commentary, analysis)
+            render_desktop_layout(stock_data, indicators, commentary, analysis, display_prefs)
         
     except Exception as e:
         handle_analysis_error(e, symbol)
 
 
-def render_desktop_layout(stock_data, indicators, commentary, analysis):
-    """Render desktop layout with columns."""
+def render_desktop_layout(stock_data, indicators, commentary, analysis, display_prefs):
+    """Render desktop layout with columns based on display preferences."""
     # Create main layout with two columns
     col1, col2 = st.columns([2, 1])
     
     # Left column - Charts
     with col1:
-        st.markdown("### 📊 Price Analysis")
-        with st.spinner("📈 Rendering price chart..."):
-            render_price_chart(stock_data, indicators)
+        # Price Charts section
+        if display_prefs.get('show_price_charts', True):
+            st.markdown("### 📊 Price Analysis")
+            with st.spinner("📈 Rendering price chart..."):
+                render_price_chart(stock_data, indicators)
         
-        # Additional indicators chart if RSI data is available
-        if indicators and 'rsi' in indicators:
+        # Technical Indicators Chart section
+        if display_prefs.get('show_technical_indicators', True) and indicators and 'rsi' in indicators:
             st.markdown("### 📉 Technical Indicators")
             with st.spinner("📊 Rendering technical indicators..."):
                 render_indicators_chart(indicators, stock_data)
     
     # Right column - Metrics and Commentary
     with col2:
-        # RSI Gauge
-        if indicators and 'rsi' in indicators:
+        # Technical Indicators - RSI Gauge
+        if display_prefs.get('show_technical_indicators', True) and indicators and 'rsi' in indicators:
             st.markdown("### ⚖️ RSI Gauge")
             render_rsi_gauge(indicators['rsi'])
             st.markdown("---")
         
-        # Key metrics
-        st.markdown("### 📊 Key Metrics")
-        render_key_metrics(indicators)
+        # Metrics & Analysis section
+        if display_prefs.get('show_metrics_analysis', True):
+            st.markdown("### 📊 Key Metrics")
+            render_key_metrics(indicators, show_title=False)
+            
+            st.markdown("---")
+            
+            # Additional price metrics
+            if stock_data is not None and not stock_data.empty:
+                st.markdown("### 💰 Price Metrics")
+                render_price_metrics(stock_data, show_title=False)
+                st.markdown("---")
         
-        st.markdown("---")
-        
-        # AI Commentary
-        if commentary:
+        # AI Commentary section
+        if display_prefs.get('show_ai_commentary', True) and commentary:
             st.markdown("### 🤖 AI Analysis")
-            render_ai_commentary(commentary)
-        
-        st.markdown("---")
-        
-        # Additional price metrics
-        if stock_data is not None and not stock_data.empty:
-            st.markdown("### 💰 Price Metrics")
-            render_price_metrics(stock_data)
+            render_ai_commentary(commentary, show_title=False)
+            st.markdown("---")
     
-    # Full-width analysis summary at the bottom
-    st.markdown("---")
-    with st.spinner("📋 Preparing analysis summary..."):
-        render_analysis_summary(analysis)
+    # Full-width sections at the bottom
+    # Technical Summary section
+    if display_prefs.get('show_technical_summary', True):
+        with st.spinner("📋 Preparing analysis summary..."):
+            render_analysis_summary(analysis)
 
 
-def render_mobile_layout(stock_data, indicators, commentary, analysis):
-    """Render mobile-friendly vertical layout."""
-    # RSI Gauge first (if available)
-    if indicators and 'rsi' in indicators:
+def render_mobile_layout(stock_data, indicators, commentary, analysis, display_prefs):
+    """Render mobile-friendly vertical layout based on display preferences."""
+    
+    # Technical Indicators - RSI Gauge first (if available and enabled)
+    if display_prefs.get('show_technical_indicators', True) and indicators and 'rsi' in indicators:
         st.markdown("### ⚖️ RSI Gauge")
         render_rsi_gauge(indicators['rsi'])
         st.markdown("---")
     
-    # Key metrics
-    st.markdown("### 📊 Key Metrics")
-    render_key_metrics(indicators)
-    st.markdown("---")
+    # Metrics & Analysis section
+    if display_prefs.get('show_metrics_analysis', True):
+        st.markdown("### 📊 Key Metrics")
+        render_key_metrics(indicators, show_title=False)
+        st.markdown("---")
     
-    # Price chart
-    st.markdown("### 📊 Price Analysis")
-    with st.spinner("📈 Loading chart..."):
-        render_price_chart(stock_data, indicators)
+    # Price Charts section
+    if display_prefs.get('show_price_charts', True):
+        st.markdown("### 📊 Price Analysis")
+        with st.spinner("📈 Loading chart..."):
+            render_price_chart(stock_data, indicators)
     
-    # Technical indicators chart
-    if indicators and 'rsi' in indicators:
+    # Technical Indicators Chart section
+    if display_prefs.get('show_technical_indicators', True) and indicators and 'rsi' in indicators:
         st.markdown("### 📉 Technical Indicators")
         with st.spinner("📊 Loading indicators..."):
             render_indicators_chart(indicators, stock_data)
     
-    # AI Commentary
-    if commentary:
-        st.markdown("### 🤖 AI Analysis")
-        render_ai_commentary(commentary)
-    
-    # Price metrics
-    if stock_data is not None and not stock_data.empty:
+    # Metrics & Analysis - Price metrics
+    if display_prefs.get('show_metrics_analysis', True) and stock_data is not None and not stock_data.empty:
         st.markdown("### 💰 Price Metrics")
-        render_price_metrics(stock_data)
+        render_price_metrics(stock_data, show_title=False)
     
-    # Analysis summary
-    st.markdown("---")
-    with st.spinner("📋 Loading summary..."):
-        render_analysis_summary(analysis)
+    # AI Commentary section
+    if display_prefs.get('show_ai_commentary', True) and commentary:
+        st.markdown("### 🤖 AI Analysis")
+        render_ai_commentary(commentary, show_title=False)
+        st.markdown("### 🤖 AI Analysis")
+        render_ai_commentary(commentary, show_title=False)
+    
+    # Technical Summary section
+    if display_prefs.get('show_technical_summary', True):
+        st.markdown("---")
+        with st.spinner("📋 Loading summary..."):
+            render_analysis_summary(analysis)
 
 
 def render_welcome_screen():

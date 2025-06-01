@@ -10,19 +10,21 @@ import pandas as pd
 from utils.formatters import format_currency, format_volume, format_percentage, format_change
 
 
-def render_key_metrics(indicators):
+def render_key_metrics(indicators, show_title=True):
     """
     Render key financial metrics using st.metric components.
     
     Args:
         indicators: Dictionary containing technical indicators and price data
+        show_title: Whether to display the section title
     """
     if not indicators:
         st.warning("⚠️ No metrics data available.")
         return
     
     try:
-        st.subheader("📊 Key Metrics")
+        if show_title:
+            st.subheader("📊 Key Metrics")
         
         # Create three columns for metrics
         col1, col2, col3 = st.columns(3)
@@ -121,18 +123,20 @@ def render_key_metrics(indicators):
         st.error(f"❌ Error rendering metrics: {str(e)}")
 
 
-def render_price_metrics(stock_data):
+def render_price_metrics(stock_data, show_title=True):
     """
     Render price-specific metrics from stock data.
     
     Args:
         stock_data: DataFrame with OHLCV data
+        show_title: Whether to display the section title
     """
     if stock_data is None or stock_data.empty:
         return
     
     try:
-        st.subheader("💹 Price Metrics")
+        if show_title:
+            st.subheader("💹 Price Metrics")
         
         latest_data = stock_data.iloc[-1]
         

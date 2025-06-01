@@ -12,19 +12,21 @@ from utils.formatters import format_currency, format_percentage, format_number
 from config.ui_config import COLORS, MOBILE_CONFIG
 
 
-def render_ai_commentary(commentary_text):
+def render_ai_commentary(commentary_text, show_title=True):
     """
     Display AI-generated commentary in a styled block.
     
     Args:
         commentary_text: The AI-generated commentary text
+        show_title: Whether to display the section title
     """
     if not commentary_text:
         st.warning("⚠️ No AI commentary available.")
         return
     
     try:
-        st.subheader("🤖 AI Market Commentary")
+        if show_title:
+            st.subheader("🤖 AI Market Commentary")
         
         # Create a styled container for the commentary
         st.markdown(

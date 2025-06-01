@@ -143,14 +143,106 @@ def render_controls():
     st.session_state.period = period
     st.session_state.language = language
     
+    # Display Controls Section
+    render_display_controls()
+    
     # Footer with tips
     st.sidebar.markdown("---")
     st.sidebar.markdown(
         "<small>💡 **Tips:**<br>"
         "• Use popular stocks for quick analysis<br>"
         "• Symbol format: 1-5 letters (e.g., AAPL)<br>"
-        "• Recent symbols appear below for quick access</small>",
+        "• Toggle sections above to customize your view</small>",
         unsafe_allow_html=True
     )
     
     return symbol, period, language
+
+
+def render_display_controls():
+    """
+    Render display controls for toggling different sections of the analysis.
+    """
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🎛️ Display Options")
+    
+    # Initialize display preferences if not set
+    if 'display_prefs' not in st.session_state:
+        st.session_state.display_prefs = {
+            'show_price_charts': True,
+            'show_technical_indicators': True,
+            'show_metrics_analysis': True,
+            'show_ai_commentary': True,
+            'show_technical_summary': True
+        }
+    
+    # Price Charts toggle
+    st.session_state.display_prefs['show_price_charts'] = st.sidebar.checkbox(
+        "📈 Price Charts",
+        value=st.session_state.display_prefs['show_price_charts'],
+        help="Show candlestick chart with moving averages and volume"
+    )
+    
+    # Technical Indicators toggle
+    st.session_state.display_prefs['show_technical_indicators'] = st.sidebar.checkbox(
+        "📊 Technical Indicators",
+        value=st.session_state.display_prefs['show_technical_indicators'],
+        help="Show RSI gauge, trend indicators, and technical charts"
+    )
+    
+    # Metrics & Analysis toggle
+    st.session_state.display_prefs['show_metrics_analysis'] = st.sidebar.checkbox(
+        "📋 Metrics & Analysis",
+        value=st.session_state.display_prefs['show_metrics_analysis'],
+        help="Show key metrics, price metrics, and market status"
+    )
+    
+    # AI Commentary toggle
+    st.session_state.display_prefs['show_ai_commentary'] = st.sidebar.checkbox(
+        "🤖 AI Commentary",
+        value=st.session_state.display_prefs['show_ai_commentary'],
+        help="Show AI-generated market analysis and commentary"
+    )
+    
+    # Technical Summary toggle
+    st.session_state.display_prefs['show_technical_summary'] = st.sidebar.checkbox(
+        "📑 Technical Summary",
+        value=st.session_state.display_prefs['show_technical_summary'],
+        help="Show detailed technical analysis summary table"
+    )
+    
+    # Quick preset buttons
+    st.sidebar.markdown("**Quick Presets:**")
+    col1, col2 = st.sidebar.columns(2)
+    
+    with col1:
+        if st.button("📊 All", key="preset_all", help="Show all sections"):
+            st.session_state.display_prefs = {key: True for key in st.session_state.display_prefs}
+            st.rerun()
+    
+    with col2:
+        if st.button("🎯 Essential", key="preset_essential", help="Show only essential sections"):
+            st.session_state.display_prefs = {
+                'show_price_charts': True,
+                'show_technical_indicators': True,
+                'show_metrics_analysis': True,
+                'show_ai_commentary': False,
+                'show_technical_summary': False
+            }
+            st.rerun()
+
+
+def get_display_preferences():
+    """
+    Get the current display preferences from session state.
+    
+    Returns:
+        dict: Current display preferences
+    """
+    return st.session_state.get('display_prefs', {
+        'show_price_charts': True,
+        'show_technical_indicators': True,
+        'show_metrics_analysis': True,
+        'show_ai_commentary': True,
+        'show_technical_summary': True
+    })
