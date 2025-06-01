@@ -69,6 +69,12 @@ class TestYFinanceProvider:
         with pytest.raises(ValueError, match="No data found for symbol: FAKE"):
             self.provider.fetch_stock_data("FAKE", "1mo")
     
+    def test_fetch_stock_data_with_long_symbol_raises_error(self):
+        """Test handling of symbols that are too long"""
+        # Test with symbol that's too long (>5 characters)
+        with pytest.raises(ValueError, match="Symbol too long"):
+            self.provider.fetch_stock_data("TOOLONG", "1mo")
+    
     @patch('src.data.yfinance_provider.yf.Ticker')
     def test_insufficient_data_handling(self, mock_ticker):
         """Test handling of insufficient data (less than 5 days)"""
@@ -145,7 +151,7 @@ class TestYFinanceProvider:
         
         # Invalid symbols should raise ValueError
         with pytest.raises(ValueError, match="Symbol must be a non-empty string"):
-            self.provider._clean_symbol(None)
+            self.provider._clean_symbol(None)  # type: ignore
         
         with pytest.raises(ValueError, match="Symbol must be a non-empty string"):
             self.provider._clean_symbol("")
@@ -154,7 +160,7 @@ class TestYFinanceProvider:
             self.provider._clean_symbol("TOOLONG")
         
         with pytest.raises(ValueError, match="Invalid symbol format"):
-            self.provider._clean_symbol("INVALID@")
+            self.provider._clean_symbol("ABC@")
     
     @patch('src.data.yfinance_provider.yf.Ticker')
     def test_fetch_stock_data_with_api_exception(self, mock_ticker):
@@ -263,9 +269,9 @@ class TestYFinanceProvider:
         # Test with various invalid inputs
         invalid_symbols = [
             None,
-            123,
-            [],
-            {},
+            123,  # type: ignore
+            [],  # type: ignore
+            {},  # type: ignore
             "",
             "   ",
             "SYMBOL!",
@@ -275,7 +281,7 @@ class TestYFinanceProvider:
         
         for invalid_symbol in invalid_symbols:
             with pytest.raises(ValueError):
-                self.provider._clean_symbol(invalid_symbol)
+                self.provider._clean_symbol(invalid_symbol)  # type: ignore
     
     @patch('src.data.yfinance_provider.yf.Ticker')
     def test_multiple_consecutive_calls_rate_limiting(self, mock_ticker):
