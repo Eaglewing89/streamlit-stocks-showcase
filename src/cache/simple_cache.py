@@ -4,6 +4,7 @@ import time
 import pandas as pd
 from typing import Optional
 from pathlib import Path
+from io import StringIO
 
 
 class SimpleCache:
@@ -122,7 +123,8 @@ class SimpleCache:
         data_json = self._get_text(key, max_age_hours)
         if data_json:
             try:
-                return pd.read_json(data_json)
+                # Use StringIO and orient='split' to preserve data types and index information
+                return pd.read_json(StringIO(data_json), orient='split')
             except (ValueError, TypeError):
                 # Remove corrupted data
                 self._delete(key)
@@ -135,7 +137,8 @@ class SimpleCache:
             key: Cache key
             data: DataFrame to store
         """
-        self._set_text(key, data.to_json())
+        # Use orient='split' to preserve data types and index information
+        self._set_text(key, data.to_json(orient='split'))
     
     def _get_text(self, key: str, max_age_hours: int) -> Optional[str]:
         """Get text data from cache if fresh
