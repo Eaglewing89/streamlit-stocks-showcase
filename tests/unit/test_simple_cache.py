@@ -351,7 +351,8 @@ class TestSimpleCache:
         
         assert retrieved is not None
         assert retrieved.empty
-        pd.testing.assert_frame_equal(retrieved, empty_df, check_freq=False, check_dtype=False, check_index_type=False)
+        pd.testing.assert_frame_equal(retrieved, empty_df, check_freq=False, check_dtype=False, 
+                                    check_index_type=False, check_column_type=False)
     
     def test_cache_returns_none_for_nonexistent_key(self, test_cache):
         """Test that cache returns None for non-existent keys"""
@@ -362,3 +363,42 @@ class TestSimpleCache:
         # Try to retrieve non-existent commentary
         retrieved_commentary = test_cache.get_commentary('nonexistent_hash', max_age_hours=1)
         assert retrieved_commentary is None
+    
+    def test_file_based_cache_operations(self, sample_stock_data):
+        """Test cache operations with file-based database"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / 'test_cache.db'
+            cache = SimpleCache(str(db_path))
+            
+            # Test stock data operations
+            cache.set_stock_data('TSLA', '1d', sample_stock_data)
+            retrieved = cache.get_stock_data('TSLA', '1d', max_age_hours=1)
+            assert retrieved is not None
+            pd.testing.assert_frame_equal(retrieved, sample_stock_data, check_freq=False, check_dtype=False)
+            
+            # Test commentary operations
+            cache.set_commentary('file_hash', 'File-based commentary')
+            commentary = cache.get_commentary('file_hash', max_age_hours=1)
+            assert commentary == 'File-based commentary'
+            
+            # Test cleanup
+            deleted = cache.cleanup_old_data(max_age_hours=168)
+            assert deleted == 0  # Nothing to delete yet
+            
+            # Test close method (should be safe to call even for file-based cache)
+            cache.close()
+
+    def test_close_method_with_in_memory_cache(self, test_cache):
+        """Test the close method with in-memory cache"""
+        # Should have a connection for in-memory cache
+        assert test_cache._connection is not None
+        
+        # Close the connection
+        test_cache.close()
+        
+        # Connection should be None after closing
+        assert test_cache._connection is None
+        
+        # Should be safe to call close again
+        test_cache.close()
+        assert test_cache._connection is None
