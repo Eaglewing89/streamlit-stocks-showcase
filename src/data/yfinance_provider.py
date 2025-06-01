@@ -83,8 +83,6 @@ class YFinanceProvider:
         try:
             # Basic format validation
             symbol = self._clean_symbol(symbol)
-            if not symbol or len(symbol) > 5:
-                return False
             
             # Apply rate limiting
             self._apply_rate_limiting()
