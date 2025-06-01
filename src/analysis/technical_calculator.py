@@ -52,9 +52,18 @@ class TechnicalCalculator:
         gain = gains.rolling(window=window).mean()
         loss = losses.rolling(window=window).mean()
         
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return float(rsi.iloc[-1])
+        # Handle division by zero cases
+        latest_gain = gain.iloc[-1]
+        latest_loss = loss.iloc[-1]
+        
+        if latest_loss == 0:
+            # No losses: RSI = 100 if there are gains, RSI = 50 if no movement
+            rsi_value = 100.0 if latest_gain > 0 else 50.0
+        else:
+            rs = latest_gain / latest_loss
+            rsi_value = 100 - (100 / (1 + rs))
+        
+        return float(rsi_value)
     
     def calculate_indicators(self, data: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -65,6 +74,10 @@ class TechnicalCalculator:
             
         Returns:
             Dictionary containing all calculated indicators
+            
+        Note:
+            volume_avg calculates the mean of the last 20 volume entries, or all available
+            entries if fewer than 20 records are provided.
         """
         close_prices = data['Close']
         

@@ -319,6 +319,20 @@ class TestTechnicalCalculator:
         rsi = TechnicalCalculator.calculate_rsi(prices, 4)
         assert rsi is not None
         assert 0 <= rsi <= 100
+    
+    def test_rsi_division_by_zero_edge_cases(self):
+        """Test RSI handles division by zero cases correctly"""
+        
+        # Case 1: All prices increasing (no losses) - should return RSI = 100
+        increasing_prices = pd.Series([100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
+                                     110, 111, 112, 113, 114, 115])
+        rsi_increasing = TechnicalCalculator.calculate_rsi(increasing_prices, 14)
+        assert rsi_increasing == 100.0
+        
+        # Case 2: Flat prices (no gains or losses) - should return RSI = 50
+        flat_prices = pd.Series([100] * 16)  # 16 identical prices
+        rsi_flat = TechnicalCalculator.calculate_rsi(flat_prices, 14)
+        assert rsi_flat == 50.0
 
 
 class TestTechnicalCalculatorPerformance:
