@@ -32,12 +32,6 @@ class SimpleCache:
         if self.db_path != ':memory:':
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
     
-    def _get_connection(self):
-        """Get database connection"""
-        if self._connection:
-            return self._connection
-        return sqlite3.connect(self.db_path)
-    
     def _init_db(self):
         """Initialize database with simple schema"""
         if self._connection:
@@ -155,7 +149,6 @@ class SimpleCache:
             cursor = self._connection.execute(
                 'SELECT data, timestamp FROM cache WHERE key = ?', (key,)
             )
-            row = cursor.fetchone()
         else:
             # Use context manager for file-based database
             with sqlite3.connect(self.db_path) as conn:
@@ -163,7 +156,20 @@ class SimpleCache:
                     'SELECT data, timestamp FROM cache WHERE key = ?', (key,)
                 )
                 row = cursor.fetchone()
+                
+                if row:
+                    data, timestamp = row
+                    age_hours = (time.time() - timestamp) / 3600
+                    if age_hours <= max_age_hours:
+                        return data
+                    else:
+                        # Clean up stale data
+                        conn.execute('DELETE FROM cache WHERE key = ?', (key,))
+                        conn.commit()
+                return None
         
+        # Handle in-memory database case
+        row = cursor.fetchone()
         if row:
             data, timestamp = row
             age_hours = (time.time() - timestamp) / 3600
@@ -171,9 +177,10 @@ class SimpleCache:
                 return data
             else:
                 # Clean up stale data
-                self._delete(key)
+                self._connection.execute('DELETE FROM cache WHERE key = ?', (key,))
+                self._connection.commit()
         return None
-    
+
     def _set_text(self, key: str, data: str):
         """Store text data with timestamp
         
@@ -196,7 +203,7 @@ class SimpleCache:
                     (key, data, time.time())
                 )
                 conn.commit()
-    
+
     def _delete(self, key: str):
         """Delete cache entry
         
@@ -223,18 +230,21 @@ class SimpleCache:
             Number of deleted entries
         """
         cutoff = time.time() - (max_age_hours * 3600)
+        
         if self._connection:
             # Use persistent connection for in-memory database
             cursor = self._connection.execute('DELETE FROM cache WHERE timestamp < ?', (cutoff,))
             deleted = cursor.rowcount
             self._connection.commit()
+            return deleted
         else:
-            # Use context manager for file-based database
+            # For file-based database, we need to handle the connection directly
+            # to get the rowcount before the connection closes
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute('DELETE FROM cache WHERE timestamp < ?', (cutoff,))
                 deleted = cursor.rowcount
                 conn.commit()
-        return deleted
+                return deleted
     
     def close(self):
         """Close the persistent connection if it exists"""
