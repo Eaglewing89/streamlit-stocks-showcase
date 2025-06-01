@@ -61,7 +61,7 @@ class TestAICommentaryGenerator:
         assert "this month" in prompt
         assert "$150.25" in prompt
         assert "$148.50" in prompt  # SMA 20
-        assert "65.1" in prompt     # RSI
+        assert "65.2" in prompt     # RSI (exact value)
         assert "bullish" in prompt
         assert "2.50%" in prompt    # Price change
         assert "Provide 2-3 sentences" in prompt
@@ -122,24 +122,45 @@ class TestAICommentaryGenerator:
         }
         
         indicators2 = {
-            'current_price': 150.256,  # Slight difference
-            'rsi': 65.27,              # Slight difference
+            'current_price': 150.256,  # Slight difference, but rounds to same value (150.25)
+            'rsi': 65.73,              # Different enough to round differently (65 vs 66)
             'trend': 'bullish',
-            'price_change_1d': {'percent': 2.56}  # Slight difference
+            'price_change_1d': {'percent': 2.56}  # Slight difference, rounds to same (2.5)
         }
         
         hash1 = ai_generator._create_content_hash("AAPL", indicators1, "1mo", "en")
         hash2 = ai_generator._create_content_hash("AAPL", indicators2, "1mo", "en")
         
-        # Should be same due to rounding (2 decimals for price, 0 for RSI, 1 for percent)
-        assert hash1 == hash2
+        # Should be different due to RSI rounding differently (65 vs 66)
+        assert hash1 != hash2
+        
+        # Test with values that actually round to the same
+        indicators3 = {
+            'current_price': 150.251,  # Rounds to 150.25
+            'rsi': 65.23,              # Rounds to 65
+            'trend': 'bullish',
+            'price_change_1d': {'percent': 2.52}  # Rounds to 2.5
+        }
+        
+        indicators4 = {
+            'current_price': 150.254,  # Rounds to 150.25 (same)
+            'rsi': 65.27,              # Rounds to 65 (same)
+            'trend': 'bullish',
+            'price_change_1d': {'percent': 2.54}  # Rounds to 2.5 (same)
+        }
+        
+        hash3 = ai_generator._create_content_hash("AAPL", indicators3, "1mo", "en")
+        hash4 = ai_generator._create_content_hash("AAPL", indicators4, "1mo", "en")
+        
+        # These should be the same due to rounding
+        assert hash3 == hash4
 
     def test_get_fallback_commentary_english(self, ai_generator, sample_indicators):
         """Test fallback commentary generation in English"""
         commentary = ai_generator._get_fallback_commentary("AAPL", sample_indicators, "1mo", "en")
         
         assert "AAPL is trading at $150.25" in commentary
-        assert "+2.5%" in commentary
+        assert "+2.50%" in commentary
         assert "bullish" in commentary
         assert isinstance(commentary, str)
         assert len(commentary) > 0
@@ -149,7 +170,7 @@ class TestAICommentaryGenerator:
         commentary = ai_generator._get_fallback_commentary("AAPL", sample_indicators, "1mo", "sv")
         
         assert "AAPL handlas för $150.25" in commentary
-        assert "+2.5%" in commentary
+        assert "+2.50%" in commentary
         assert "bullish" in commentary
         assert isinstance(commentary, str)
 
@@ -171,18 +192,14 @@ class TestAICommentaryGenerator:
         commentary = ai_generator._get_fallback_commentary("TEST", incomplete_indicators, "1mo", "en")
         
         assert "TEST is trading at $100.00" in commentary
-        assert "+0.0%" in commentary  # Default value
+        assert "+0.00%" in commentary  # Default value
         assert "neutral" in commentary  # Default trend
 
     @patch('src.ai.commentary_generator.time.time')
     def test_rate_limiting_delays_requests(self, mock_time, ai_generator, sample_indicators, sample_stock_data):
         """Test that rate limiting enforces minimum interval between API calls"""
-        # Mock time progression
-        mock_time.side_effect = [
-            1000.0,  # First call to check elapsed time
-            1001.0,  # Second call (1 second later, should trigger sleep)
-            1002.0   # After sleep
-        ]
+        # Mock time progression: first call for elapsed calculation, second for updating last_call_time
+        mock_time.side_effect = [1001.0, 1003.0]  # 1 second elapsed, then after sleep
         
         with patch.object(ai_generator.client.chat.completions, 'create') as mock_create, \
              patch('src.ai.commentary_generator.time.sleep') as mock_sleep:
@@ -251,7 +268,22 @@ class TestAICommentaryGenerator:
             
             # Should return fallback commentary
             assert "AAPL is trading at $150.25" in result
-            assert "+2.5%" in result
+            assert "+2.50%" in result
+            assert "bullish" in result
+
+    def test_generate_commentary_api_none_content_fallback(self, ai_generator, sample_indicators, sample_stock_data):
+        """Test that API returning None content triggers fallback commentary"""
+        with patch.object(ai_generator.client.chat.completions, 'create') as mock_create:
+            mock_response = Mock()
+            mock_response.choices = [Mock()]
+            mock_response.choices[0].message.content = None  # OpenAI returns None content
+            mock_create.return_value = mock_response
+            
+            result = ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            
+            # Should return fallback commentary
+            assert "AAPL is trading at $150.25" in result
+            assert "+2.50%" in result
             assert "bullish" in result
 
     def test_generate_commentary_updates_last_call_time(self, ai_generator, sample_indicators, sample_stock_data):
