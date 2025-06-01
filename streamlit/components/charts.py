@@ -9,7 +9,8 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-from utils.formatters import format_currency, format_volume
+from ..utils.formatters import format_currency, format_volume
+from ..config.ui_config import COLORS, RSI_LEVELS, TREND_INDICATORS, CHART_CONFIG
 
 
 def render_price_chart(stock_data, indicators):
@@ -230,6 +231,120 @@ def render_indicators_chart(indicators, stock_data=None):
         st.error(f"❌ Error rendering indicators chart: {str(e)}")
 
 
+def render_rsi_gauge(rsi_value):
+    """
+    Render an RSI gauge visualization.
+    
+    Args:
+        rsi_value (float): Current RSI value (0-100)
+    """
+    if rsi_value is None:
+        st.warning("⚠️ RSI data not available")
+        return
+    
+    try:
+        # Determine RSI status and color
+        if rsi_value >= RSI_LEVELS['overbought']:
+            status = "Overbought"
+            color = COLORS['danger']
+        elif rsi_value <= RSI_LEVELS['oversold']:
+            status = "Oversold"
+            color = COLORS['success']
+        else:
+            status = "Neutral"
+            color = COLORS['neutral']
+        
+        # Create gauge chart
+        fig = go.Figure(go.Indicator(
+            mode = "gauge+number+delta",
+            value = rsi_value,
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': f"RSI: {status}"},
+            delta = {'reference': RSI_LEVELS['neutral']},
+            gauge = {
+                'axis': {'range': [None, 100]},
+                'bar': {'color': color},
+                'steps': [
+                    {'range': [0, RSI_LEVELS['oversold']], 'color': COLORS['success']},
+                    {'range': [RSI_LEVELS['oversold'], RSI_LEVELS['overbought']], 'color': COLORS['neutral']},
+                    {'range': [RSI_LEVELS['overbought'], 100], 'color': COLORS['danger']}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': rsi_value
+                }
+            }
+        ))
+        
+        fig.update_layout(
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Add interpretation text
+        st.markdown(
+            f"<div style='text-align: center; color: {color}; font-weight: bold;'>"
+            f"RSI: {rsi_value:.1f} - {status}</div>",
+            unsafe_allow_html=True
+        )
+        
+    except Exception as e:
+        st.error(f"❌ Error rendering RSI gauge: {str(e)}")
+
+
+def render_trend_indicator(stock_data, indicators=None):
+    """
+    Render a trend indicator based on price movement and technical indicators.
+    
+    Args:
+        stock_data (DataFrame): Stock price data
+        indicators (dict): Technical indicators
+    """
+    if stock_data is None or stock_data.empty:
+        return
+    
+    try:
+        # Calculate trend based on recent price movement
+        recent_data = stock_data.tail(10)  # Last 10 data points
+        price_change = (recent_data['Close'].iloc[-1] - recent_data['Close'].iloc[0]) / recent_data['Close'].iloc[0]
+        
+        # Determine trend
+        if price_change > 0.02:  # +2% or more
+            trend_key = 'bullish'
+        elif price_change < -0.02:  # -2% or more
+            trend_key = 'bearish'
+        elif abs(price_change) < 0.005:  # Less than 0.5%
+            trend_key = 'sideways'
+        else:
+            trend_key = 'neutral'
+        
+        # Get trend info
+        trend_info = TREND_INDICATORS[trend_key]
+        
+        # Display trend indicator
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown(
+                f"<div style='text-align: center; padding: 20px; border: 2px solid {trend_info['color']}; "
+                f"border-radius: 10px; background-color: {trend_info['color']}20;'>"
+                f"<div style='font-size: 3em;'>{trend_info['icon']}</div>"
+                f"<div style='font-size: 1.5em; font-weight: bold; color: {trend_info['color']};'>"
+                f"{trend_info['label']}</div>"
+                f"<div style='font-size: 1em; color: {COLORS['text']};'>"
+                f"Price change: {price_change*100:+.1f}%</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        
+    except Exception as e:
+        st.error(f"❌ Error rendering trend indicator: {str(e)}")
+
+
 def create_mini_chart(data, title="", height=150):
     """
     Create a small chart for use in metrics or summary sections.
@@ -273,3 +388,61 @@ def create_mini_chart(data, title="", height=150):
     except Exception as e:
         st.error(f"❌ Error creating mini chart: {str(e)}")
         return None
+
+
+def create_price_performance_chart(stock_data, period_label):
+    """
+    Create a performance chart showing price movement over time.
+    
+    Args:
+        stock_data (DataFrame): Stock price data
+        period_label (str): Time period label for the chart
+    """
+    if stock_data is None or stock_data.empty:
+        return
+    
+    try:
+        # Calculate percentage change from start
+        start_price = stock_data['Close'].iloc[0]
+        performance = ((stock_data['Close'] - start_price) / start_price * 100)
+        
+        fig = go.Figure()
+        
+        # Determine color based on overall performance
+        final_performance = performance.iloc[-1]
+        line_color = COLORS['success'] if final_performance >= 0 else COLORS['danger']
+        
+        fig.add_trace(
+            go.Scatter(
+                x=stock_data.index,
+                y=performance,
+                mode='lines',
+                line=dict(color=line_color, width=3),
+                fill='tonexty' if final_performance >= 0 else 'tozeroy',
+                fillcolor=f"{line_color}20",
+                name=f"Performance ({period_label})"
+            )
+        )
+        
+        # Add zero line
+        fig.add_hline(y=0, line_dash="dash", line_color=COLORS['neutral'])
+        
+        fig.update_layout(
+            title=f"Price Performance - {period_label}",
+            xaxis_title="Date",
+            yaxis_title="Performance (%)",
+            height=300,
+            showlegend=False,
+            margin=dict(l=0, r=0, t=40, b=0),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        # Update grid
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor=COLORS['grid'])
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor=COLORS['grid'])
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"❌ Error creating performance chart: {str(e)}")
