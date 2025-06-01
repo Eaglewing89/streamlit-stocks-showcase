@@ -73,7 +73,7 @@ class TestAICommentaryGenerator:
         
         assert "Generera en professionell marknadskommentar på svenska" in prompt
         assert "AAPL" in prompt
-        assert "this quarter" in prompt
+        assert "detta kvartal" in prompt  # Swedish translation for "this quarter"
         assert "$150.25" in prompt
 
     def test_build_prompt_different_periods(self, ai_generator, sample_indicators):
@@ -90,6 +90,22 @@ class TestAICommentaryGenerator:
         
         for period, expected_context in test_cases:
             prompt = ai_generator._build_prompt("AAPL", sample_indicators, period, "en")
+            assert expected_context in prompt
+
+    def test_build_prompt_swedish_periods(self, ai_generator, sample_indicators):
+        """Test prompt building for different time periods in Swedish"""
+        test_cases = [
+            ("1d", "dagens handel"),
+            ("5d", "denna vecka"),
+            ("1mo", "denna månad"),
+            ("3mo", "detta kvartal"),
+            ("6mo", "6 månader"),
+            ("1y", "detta år"),
+            ("2y", "the 2y period")  # Default case - still in English since not in mapping
+        ]
+        
+        for period, expected_context in test_cases:
+            prompt = ai_generator._build_prompt("AAPL", sample_indicators, period, "sv")
             assert expected_context in prompt
 
     def test_create_content_hash_consistency(self, ai_generator, sample_indicators):
@@ -196,7 +212,7 @@ class TestAICommentaryGenerator:
         assert "neutral" in commentary  # Default trend
 
     @patch('src.ai.commentary_generator.time.time')
-    def test_rate_limiting_delays_requests(self, mock_time, ai_generator, sample_indicators, sample_stock_data):
+    def test_rate_limiting_delays_requests(self, mock_time, ai_generator, sample_indicators):
         """Test that rate limiting enforces minimum interval between API calls"""
         # Mock time progression: first call for elapsed calculation, second for updating last_call_time
         mock_time.side_effect = [1001.0, 1003.0]  # 1 second elapsed, then after sleep
@@ -211,13 +227,13 @@ class TestAICommentaryGenerator:
             # Set last call time to simulate previous call
             ai_generator.last_call_time = 1000.0
             
-            ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            ai_generator.generate_commentary("AAPL", sample_indicators, "1mo", "en")
             
             # Should sleep for (2.0 - 1.0) = 1.0 second
             mock_sleep.assert_called_once_with(1.0)
 
     @patch('src.ai.commentary_generator.time.time')
-    def test_rate_limiting_no_delay_when_sufficient_time_passed(self, mock_time, ai_generator, sample_indicators, sample_stock_data):
+    def test_rate_limiting_no_delay_when_sufficient_time_passed(self, mock_time, ai_generator, sample_indicators):
         """Test that no delay occurs when sufficient time has passed"""
         mock_time.return_value = 1005.0  # 5 seconds later
         
@@ -230,13 +246,13 @@ class TestAICommentaryGenerator:
             
             ai_generator.last_call_time = 1000.0  # 5 seconds ago
             
-            ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            ai_generator.generate_commentary("AAPL", sample_indicators, "1mo", "en")
             
             # Should not sleep since 5 seconds > 2 seconds minimum interval
             mock_sleep.assert_not_called()
 
     @patch('src.ai.commentary_generator.time.time')
-    def test_generate_commentary_successful_api_call(self, mock_time, ai_generator, sample_indicators, sample_stock_data):
+    def test_generate_commentary_successful_api_call(self, mock_time, ai_generator, sample_indicators):
         """Test successful OpenAI API call"""
         mock_time.return_value = 1000.0
         
@@ -246,7 +262,7 @@ class TestAICommentaryGenerator:
             mock_response.choices[0].message.content = "  AAPL shows strong momentum with bullish indicators.  "
             mock_create.return_value = mock_response
             
-            result = ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            result = ai_generator.generate_commentary("AAPL", sample_indicators, "1mo", "en")
             
             assert result == "AAPL shows strong momentum with bullish indicators."  # Stripped
             mock_create.assert_called_once()
@@ -259,19 +275,19 @@ class TestAICommentaryGenerator:
             assert len(call_args[1]['messages']) == 1
             assert call_args[1]['messages'][0]['role'] == "user"
 
-    def test_generate_commentary_api_failure_fallback(self, ai_generator, sample_indicators, sample_stock_data):
+    def test_generate_commentary_api_failure_fallback(self, ai_generator, sample_indicators):
         """Test that API failure triggers fallback commentary"""
         with patch.object(ai_generator.client.chat.completions, 'create') as mock_create:
             mock_create.side_effect = Exception("API Error")
             
-            result = ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            result = ai_generator.generate_commentary("AAPL", sample_indicators, "1mo", "en")
             
             # Should return fallback commentary
             assert "AAPL is trading at $150.25" in result
             assert "+2.50%" in result
             assert "bullish" in result
 
-    def test_generate_commentary_api_none_content_fallback(self, ai_generator, sample_indicators, sample_stock_data):
+    def test_generate_commentary_api_none_content_fallback(self, ai_generator, sample_indicators):
         """Test that API returning None content triggers fallback commentary"""
         with patch.object(ai_generator.client.chat.completions, 'create') as mock_create:
             mock_response = Mock()
@@ -279,14 +295,14 @@ class TestAICommentaryGenerator:
             mock_response.choices[0].message.content = None  # OpenAI returns None content
             mock_create.return_value = mock_response
             
-            result = ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            result = ai_generator.generate_commentary("AAPL", sample_indicators, "1mo", "en")
             
             # Should return fallback commentary
             assert "AAPL is trading at $150.25" in result
             assert "+2.50%" in result
             assert "bullish" in result
 
-    def test_generate_commentary_updates_last_call_time(self, ai_generator, sample_indicators, sample_stock_data):
+    def test_generate_commentary_updates_last_call_time(self, ai_generator, sample_indicators):
         """Test that last_call_time is updated after API call"""
         with patch.object(ai_generator.client.chat.completions, 'create') as mock_create, \
              patch('src.ai.commentary_generator.time.time') as mock_time:
@@ -297,12 +313,12 @@ class TestAICommentaryGenerator:
             mock_time.return_value = 1234.5
             
             initial_time = ai_generator.last_call_time
-            ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "1mo", "en")
+            ai_generator.generate_commentary("AAPL", sample_indicators, "1mo", "en")
             
             assert ai_generator.last_call_time == 1234.5
             assert ai_generator.last_call_time != initial_time
 
-    def test_generate_commentary_builds_correct_prompt(self, ai_generator, sample_indicators, sample_stock_data):
+    def test_generate_commentary_builds_correct_prompt(self, ai_generator, sample_indicators):
         """Test that generate_commentary uses the correct prompt"""
         with patch.object(ai_generator.client.chat.completions, 'create') as mock_create, \
              patch.object(ai_generator, '_build_prompt') as mock_build_prompt:
@@ -312,7 +328,7 @@ class TestAICommentaryGenerator:
             mock_create.return_value.choices[0].message.content = "Test commentary"
             mock_build_prompt.return_value = "test prompt"
             
-            ai_generator.generate_commentary("AAPL", sample_stock_data, sample_indicators, "3mo", "sv")
+            ai_generator.generate_commentary("AAPL", sample_indicators, "3mo", "sv")
             
             mock_build_prompt.assert_called_once_with("AAPL", sample_indicators, "3mo", "sv")
             

@@ -20,15 +20,13 @@ class AICommentaryGenerator:
         self.last_call_time = 0
         self.min_interval = 2.0  # 2 seconds between API calls for rate limiting
     
-    def generate_commentary(self, symbol: str, data: pd.DataFrame, 
-                          indicators: Dict[str, Any], period: str, 
-                          language: str = "en") -> str:
+    def generate_commentary(self, symbol: str, indicators: Dict[str, Any], 
+                          period: str, language: str = "en") -> str:
         """
         Generate AI commentary with caching and rate limiting.
         
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
-            data: Stock price data as pandas DataFrame
             indicators: Technical indicators dictionary
             period: Time period for analysis (e.g., '1mo', '3mo')
             language: Language for commentary ('en' or 'sv')
@@ -88,32 +86,30 @@ class AICommentaryGenerator:
         instruction = lang_instructions.get(language, lang_instructions["en"])
         
         period_context = {
-            "1d": "today's trading",
-            "5d": "this week", 
-            "1mo": "this month",
-            "3mo": "this quarter",
-            "6mo": "6 months",
-            "1y": "this year"
+            "1d": "today's trading" if language == "en" else "dagens handel",
+            "5d": "this week" if language == "en" else "denna vecka",
+            "1mo": "this month" if language == "en" else "denna månad",
+            "3mo": "this quarter" if language == "en" else "detta kvartal",
+            "6mo": "6 months" if language == "en" else "6 månader",
+            "1y": "this year" if language == "en" else "detta år"
         }
         
         context = period_context.get(period, f"the {period} period")
         
-        prompt = f"""
-        {instruction} for stock {symbol} based on {context}:
-        
-        Current Price: ${indicators.get('current_price', 0):.2f}
-        20-day SMA: ${indicators.get('sma_20', 0):.2f}
-        50-day SMA: ${indicators.get('sma_50', 0):.2f}
-        RSI: {indicators.get('rsi', 0):.1f}
-        Trend: {indicators.get('trend', 'neutral')}
-        Price Change: {indicators.get('price_change_1d', {}).get('percent', 0):.2f}%
-        
-        Provide 2-3 sentences focusing on:
-        1. Current price movement and trend
-        2. Technical indicator signals
-        
-        Keep it professional and avoid direct investment advice.
-        """
+        prompt = f"""{instruction} for stock {symbol} based on {context}:
+
+Current Price: ${indicators.get('current_price', 0):.2f}
+20-day SMA: ${indicators.get('sma_20', 0):.2f}
+50-day SMA: ${indicators.get('sma_50', 0):.2f}
+RSI: {indicators.get('rsi', 0):.1f}
+Trend: {indicators.get('trend', 'neutral')}
+Price Change: {indicators.get('price_change_1d', {}).get('percent', 0):.2f}%
+
+Provide 2-3 sentences focusing on:
+1. Current price movement and trend
+2. Technical indicator signals
+
+Keep it professional and avoid direct investment advice."""
         
         return prompt
     
