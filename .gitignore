@@ -88,3 +88,6 @@ Thumbs.db
 
 # PyCharm
 .idea/
+
+# External API tests
+test_real*
