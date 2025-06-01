@@ -134,7 +134,7 @@ Keep it professional and avoid direct investment advice."""
             'language': language,
             'current_price': round(indicators.get('current_price', 0), 2),
             'trend': indicators.get('trend', ''),
-            'rsi': round(indicators.get('rsi', 0), 0),  # Round RSI to nearest integer
+            'rsi': round(indicators.get('rsi') or 0, 0),  # Handle None RSI values
             'price_change': round(indicators.get('price_change_1d', {}).get('percent', 0), 1)
         }
         
