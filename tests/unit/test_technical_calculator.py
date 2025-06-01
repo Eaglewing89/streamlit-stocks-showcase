@@ -83,6 +83,7 @@ class TestTechnicalCalculator:
         rsi = TechnicalCalculator.calculate_rsi(prices, 14)
         
         # RSI should be between 0 and 100
+        assert rsi is not None
         assert 0 <= rsi <= 100
         
         # For this alternating pattern, RSI should be around middle range

@@ -45,8 +45,12 @@ class TechnicalCalculator:
             return None
         
         delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        # Calculate gains and losses for RSI using pandas methods
+        gains = delta.clip(lower=0.0)  # Keep positive values, set negative to 0
+        losses = (-delta).clip(lower=0.0)  # Keep losses as positive values
+        
+        gain = gains.rolling(window=window).mean()
+        loss = losses.rolling(window=window).mean()
         
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
