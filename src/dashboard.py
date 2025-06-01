@@ -8,7 +8,7 @@ AI commentary generation, and caching.
 
 import logging
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from .config import Config
 from .cache.simple_cache import SimpleCache
@@ -20,12 +20,16 @@ from .ai.commentary_generator import AICommentaryGenerator
 class StockDashboard:
     """Main coordinator for stock dashboard operations"""
     
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Optional[Config] = None):
         """Initialize the stock dashboard with all required components"""
         self.config = config or Config()
         self.cache = SimpleCache(self.config.db_path)
         self.data_provider = YFinanceProvider()
         self.calculator = TechnicalCalculator()
+        
+        # Ensure we have a valid API key
+        if not self.config.openai_api_key:
+            raise ValueError("OpenAI API key is required")
         self.ai_generator = AICommentaryGenerator(self.config.openai_api_key)
         
         # Simple logging
@@ -81,7 +85,7 @@ class StockDashboard:
             if commentary is None:
                 self.logger.info("Generating fresh AI commentary")
                 commentary = self.ai_generator.generate_commentary(
-                    symbol, data, indicators, period, language
+                    symbol, indicators, period, language
                 )
                 self.cache.set_commentary(content_hash, commentary)
             else:

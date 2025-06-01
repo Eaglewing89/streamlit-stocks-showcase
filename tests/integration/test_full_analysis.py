@@ -118,7 +118,7 @@ class TestFullAnalysisWorkflow:
             
             # Verify Swedish commentary was requested
             args, kwargs = mock_ai.call_args
-            assert args[4] == "sv"  # language parameter
+            assert args[3] == "sv"  # language parameter
             assert result['commentary'] == "TSLA visar stark utveckling."
     
     def test_cache_integration_for_commentary(self, dashboard, sample_stock_data):
