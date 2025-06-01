@@ -8,7 +8,7 @@ and handling various types of analysis errors gracefully.
 import streamlit as st
 import logging
 import re
-from ..config.ui_config import ERROR_MESSAGES, COLORS
+from config.ui_config import ERROR_MESSAGES, COLORS
 
 
 def handle_analysis_error(error_object, symbol):

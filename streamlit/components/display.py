@@ -8,8 +8,8 @@ technical summaries, and other analysis information with mobile responsiveness.
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone
-from ..utils.formatters import format_currency, format_percentage, format_number
-from ..config.ui_config import COLORS, MOBILE_CONFIG
+from utils.formatters import format_currency, format_percentage, format_number
+from config.ui_config import COLORS, MOBILE_CONFIG
 
 
 def render_ai_commentary(commentary_text):

@@ -6,8 +6,8 @@ time period selection, language selection, and other user preferences.
 """
 
 import streamlit as st
-from ..config.ui_config import POPULAR_STOCKS, PERIOD_DISPLAY, LANGUAGE_DISPLAY, COLORS
-from ..utils.validators import validate_stock_symbol, get_validation_icon
+from config.ui_config import POPULAR_STOCKS, PERIOD_DISPLAY, LANGUAGE_DISPLAY, COLORS
+from utils.validators import validate_stock_symbol, get_validation_icon
 
 
 def format_period_display(period):

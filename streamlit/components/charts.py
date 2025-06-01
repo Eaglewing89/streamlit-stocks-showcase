@@ -9,8 +9,8 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-from ..utils.formatters import format_currency, format_volume
-from ..config.ui_config import COLORS, RSI_LEVELS, TREND_INDICATORS, CHART_CONFIG
+from utils.formatters import format_currency, format_volume
+from config.ui_config import COLORS, RSI_LEVELS, TREND_INDICATORS, CHART_CONFIG
 
 
 def render_price_chart(stock_data, indicators):
