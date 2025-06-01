@@ -32,8 +32,7 @@ class StockDashboard:
             raise ValueError("OpenAI API key is required")
         self.ai_generator = AICommentaryGenerator(self.config.openai_api_key)
         
-        # Simple logging
-        logging.basicConfig(level=logging.INFO)
+        # Get logger (without configuring global settings)
         self.logger = logging.getLogger(__name__)
         
         self.logger.info("StockDashboard initialized successfully")
@@ -116,7 +115,7 @@ class StockDashboard:
         """
         try:
             return self.data_provider.validate_symbol(symbol)
-        except:
+        except Exception:
             return False
     
     def get_popular_symbols(self) -> List[Dict[str, str]]:

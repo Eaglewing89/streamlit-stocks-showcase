@@ -23,9 +23,11 @@ def test_config():
 @pytest.fixture
 def sample_stock_data():
     """Create realistic sample stock data for testing."""
+    # Use fixed datetime for deterministic test data
+    fixed_now = datetime(2023, 10, 1)
     dates = pd.date_range(
-        start=datetime.now() - timedelta(days=30),
-        end=datetime.now(),
+        start=fixed_now - timedelta(days=30),
+        end=fixed_now,
         freq='D'
     )
     
@@ -169,7 +171,7 @@ class TestFullAnalysisWorkflow:
             mock_fetch.return_value = pd.DataFrame({
                 'Open': [100], 'High': [105], 'Low': [95], 
                 'Close': [102], 'Volume': [1000000]
-            }, index=[datetime.now()])
+            }, index=[datetime(2023, 10, 1)])
             
             # Lowercase symbol should be normalized to uppercase
             result = dashboard.get_stock_analysis("aapl", "1mo", "en")
