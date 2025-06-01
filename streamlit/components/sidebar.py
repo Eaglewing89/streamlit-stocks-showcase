@@ -18,7 +18,8 @@ def format_period_display(period):
         '6mo': '6 Months',
         '1y': '1 Year'
     }
-    return periods.get(period, period)
+    # Ensure we always return a string, never None
+    return periods.get(period, str(period))
 
 
 def render_controls():
