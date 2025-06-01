@@ -10,8 +10,9 @@ import streamlit as st
 import sys
 import os
 
-# Add the src directory to the Python path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Add the parent directory to the Python path for package imports
+parent_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+sys.path.append(parent_path)
 
 from utils.session import initialize_session
 from components.sidebar import render_controls
