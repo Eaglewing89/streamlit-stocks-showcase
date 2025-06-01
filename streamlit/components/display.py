@@ -2,27 +2,31 @@
 Display components for the Streamlit dashboard.
 
 This module provides functions for displaying AI commentary,
-technical summaries, and other analysis information.
+technical summaries, and other analysis information with mobile responsiveness.
 """
 
 import streamlit as st
 import pandas as pd
+from datetime import datetime, timezone
 from utils.formatters import format_currency, format_percentage, format_number
+from config.ui_config import COLORS, MOBILE_CONFIG
 
 
-def render_ai_commentary(commentary_text):
+def render_ai_commentary(commentary_text, show_title=True):
     """
     Display AI-generated commentary in a styled block.
     
     Args:
         commentary_text: The AI-generated commentary text
+        show_title: Whether to display the section title
     """
     if not commentary_text:
         st.warning("⚠️ No AI commentary available.")
         return
     
     try:
-        st.subheader("🤖 AI Market Commentary")
+        if show_title:
+            st.subheader("🤖 AI Market Commentary")
         
         # Create a styled container for the commentary
         st.markdown(
@@ -280,3 +284,283 @@ def render_analysis_summary(analysis_data):
         
     except Exception as e:
         st.error(f"❌ Error rendering analysis summary: {str(e)}")
+
+
+def render_last_updated_timestamp(timestamp=None, analysis_data=None):
+    """
+    Display the last updated timestamp prominently.
+    
+    Args:
+        timestamp: Explicit timestamp to display
+        analysis_data: Analysis data containing timestamp
+    """
+    try:
+        # Try to get timestamp from various sources
+        if timestamp:
+            last_updated = timestamp
+        elif analysis_data and 'last_updated' in analysis_data:
+            last_updated = analysis_data['last_updated']
+        elif analysis_data and 'metadata' in analysis_data and 'last_updated' in analysis_data['metadata']:
+            last_updated = analysis_data['metadata']['last_updated']
+        else:
+            last_updated = datetime.now(timezone.utc)
+        
+        # Format timestamp
+        if isinstance(last_updated, str):
+            try:
+                last_updated = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+            except:
+                last_updated = datetime.now(timezone.utc)
+        
+        # Format for display
+        formatted_time = last_updated.strftime("%Y-%m-%d %H:%M:%S UTC")
+        time_ago = get_time_ago_string(last_updated)
+        
+        # Create styled timestamp display
+        st.markdown(
+            f"""
+            <div style="
+                background-color: {COLORS['light_bg']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 8px;
+                padding: 12px;
+                margin: 10px 0;
+                text-align: center;
+            ">
+                <div style="color: {COLORS['neutral']}; font-size: 14px; margin-bottom: 4px;">
+                    📅 Last Updated
+                </div>
+                <div style="color: {COLORS['text']}; font-weight: bold; font-size: 16px;">
+                    {formatted_time}
+                </div>
+                <div style="color: {COLORS['neutral']}; font-size: 12px;">
+                    {time_ago}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        
+    except Exception as e:
+        st.caption(f"⏰ Last updated: {datetime.now().strftime('%H:%M:%S')}")
+
+
+def get_time_ago_string(timestamp):
+    """
+    Get a human-readable time ago string.
+    
+    Args:
+        timestamp: The timestamp to compare against now
+    
+    Returns:
+        str: Time ago string
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        
+        diff = now - timestamp
+        seconds = int(diff.total_seconds())
+        
+        if seconds < 60:
+            return f"{seconds} seconds ago"
+        elif seconds < 3600:
+            minutes = seconds // 60
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        elif seconds < 86400:
+            hours = seconds // 3600
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        else:
+            days = seconds // 86400
+            return f"{days} day{'s' if days != 1 else ''} ago"
+    except:
+        return "Recently"
+
+
+def apply_mobile_responsive_layout():
+    """
+    Apply mobile-responsive CSS styles to the Streamlit app.
+    """
+    st.markdown(
+        f"""
+        <style>
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {{
+            .stApp > div:first-child {{
+                padding-top: 1rem;
+            }}
+            
+            .stMetric {{
+                background-color: {COLORS['light_bg']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 8px;
+                padding: 1rem;
+                margin: 0.5rem 0;
+            }}
+            
+            .stColumns > div {{
+                padding: 0 0.5rem;
+            }}
+            
+            .stDataFrame {{
+                font-size: 12px;
+            }}
+            
+            .stPlotlyChart {{
+                margin: 0 -1rem;
+            }}
+            
+            .stButton > button {{
+                width: 100%;
+                padding: 0.75rem;
+                font-size: 16px;
+                margin: 0.25rem 0;
+            }}
+            
+            .stTextInput > div > div > input {{
+                font-size: 16px;
+                padding: 0.75rem;
+            }}
+            
+            .stSelectbox > div > div > select {{
+                font-size: 16px;
+                padding: 0.75rem;
+            }}
+        }}
+        
+        /* Touch-friendly buttons */
+        .stButton > button {{
+            min-height: 44px;
+            touch-action: manipulation;
+        }}
+        
+        /* Improved readability */
+        .stMarkdown {{
+            line-height: 1.6;
+        }}
+        
+        /* Better spacing on mobile */
+        @media (max-width: 768px) {{
+            .block-container {{
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def create_mobile_friendly_metrics(metrics_data, layout='horizontal'):
+    """
+    Create mobile-friendly metric displays.
+    
+    Args:
+        metrics_data: Dictionary of metrics to display
+        layout: 'horizontal' or 'vertical' layout
+    """
+    try:
+        if not metrics_data:
+            return
+        
+        # Check if mobile layout should be used
+        if layout == 'vertical' or len(metrics_data) > 4:
+            # Vertical layout for mobile or many metrics
+            for label, value in metrics_data.items():
+                create_metric_card(label, value)
+        else:
+            # Horizontal layout for desktop
+            cols = st.columns(len(metrics_data))
+            for i, (label, value) in enumerate(metrics_data.items()):
+                with cols[i]:
+                    create_metric_card(label, value)
+                    
+    except Exception as e:
+        st.error(f"❌ Error creating metrics: {str(e)}")
+
+
+def create_metric_card(label, value, delta=None):
+    """
+    Create a styled metric card.
+    
+    Args:
+        label: The metric label
+        value: The metric value
+        delta: Optional delta value for change
+    """
+    try:
+        # Format value if it's a number
+        if isinstance(value, (int, float)):
+            if abs(value) >= 1_000_000:
+                formatted_value = f"{value/1_000_000:.2f}M"
+            elif abs(value) >= 1_000:
+                formatted_value = f"{value/1_000:.1f}K"
+            else:
+                formatted_value = f"{value:.2f}"
+        else:
+            formatted_value = str(value)
+        
+        # Create metric with or without delta
+        if delta is not None:
+            st.metric(label=label, value=formatted_value, delta=delta)
+        else:
+            st.metric(label=label, value=formatted_value)
+            
+    except Exception as e:
+        st.write(f"**{label}**: {value}")
+
+
+def render_responsive_data_table(data, title="Data Table"):
+    """
+    Render a responsive data table that works well on mobile.
+    
+    Args:
+        data: DataFrame or list of dictionaries
+        title: Table title
+    """
+    try:
+        if data is None or (hasattr(data, 'empty') and data.empty):
+            st.info("No data available")
+            return
+        
+        # Convert to DataFrame if needed
+        if isinstance(data, list):
+            df = pd.DataFrame(data)
+        else:
+            df = data.copy()
+        
+        # Mobile-friendly table display
+        st.subheader(title)
+        
+        # Use container for better mobile display
+        with st.container():
+            st.dataframe(
+                df,
+                use_container_width=True,
+                hide_index=True
+            )
+            
+    except Exception as e:
+        st.error(f"❌ Error rendering table: {str(e)}")
+
+
+def show_mobile_navigation_hint():
+    """Show navigation hints for mobile users."""
+    st.markdown(
+        """
+        <div style="
+            background-color: #e8f4f8;
+            border: 1px solid #b3d9e8;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 14px;
+        ">
+            📱 <strong>Mobile Tip:</strong> Swipe left to access the sidebar menu
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
